@@ -1,7 +1,7 @@
 Distribute application to multiple platform by curl
 ====
 
-brew? apt? yum? No, curl!
+Use brew? apt? yum? Just use curl:
 
 ```
 $ L=/usr/local/bin/app && curl -sL -A "`uname -sp`" https://locahost:3000/app.gz | zcat >$L && chmod +x $L
