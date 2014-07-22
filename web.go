@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -40,18 +40,45 @@ func guessArch(userAgent string) string {
 
 func guessPlatform(userAgent string) string {
 	userAgent = strings.ToLower(userAgent)
-	return guessOS(userAgent) + "-" + guessArch(userAgent)
+	return guessOS(userAgent) + "_" + guessArch(userAgent)
+}
+
+func binaryURL(platform string) string {
+	return os.Getenv("BASE_URL") + "/" + os.Getenv("VERSION") + "/" + os.Getenv("DIST_NAME") + "_" + os.Getenv("VERSION") + "_" + platform + ".zip"
 }
 
 func initial(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, guessPlatform(r.UserAgent()))
+	platform := guessPlatform(r.UserAgent())
+	log.Printf("%s", platform)
+	log.Printf("%s", binaryURL(platform))
+	http.Redirect(w, r, binaryURL(platform), http.StatusTemporaryRedirect)
+}
+
+func accessLog(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL)
+		handler.ServeHTTP(w, r)
+	})
 }
 
 func main() {
 
+	if os.Getenv("BASE_URL") == "" {
+		log.Fatal("Need to specify binary host url in the BASE_URL env var")
+	}
+
+	if os.Getenv("DIST_NAME") == "" {
+		log.Fatal("Need to specify binary name in the DIST_NAME env var")
+	}
+
+	if os.Getenv("VERSION") == "" {
+		log.Fatal("Need to specify binary version in the VERSION env var")
+	}
+
 	if os.Getenv("PORT") == "" {
 		os.Setenv("PORT", "3000")
 	}
-	http.HandleFunc("/", initial)
-	http.ListenAndServe(":"+os.Getenv("PORT"), nil)
+
+	http.HandleFunc("/app.zip", initial)
+	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), accessLog(http.DefaultServeMux)))
 }
